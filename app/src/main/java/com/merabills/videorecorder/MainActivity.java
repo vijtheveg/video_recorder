@@ -5,7 +5,6 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.projection.MediaProjectionManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.widget.Toast;
@@ -40,14 +39,9 @@ public class MainActivity extends AppCompatActivity {
                         final Intent serviceIntent = new Intent(this, ScreenRecorderService.class);
                         serviceIntent.putExtra(KEY_RESULT_CODE, result.getResultCode());
                         serviceIntent.putExtra(KEY_DATA, data);
+                        resultCode = result.getResultCode();
+                        MainActivity.data = data;
 
-                        // Start service based on Android version
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                            startForegroundService(serviceIntent);
-                        else
-                            startService(serviceIntent);
-
-                        // Launch MeraBills app after short delay
                         new Handler().postDelayed(this::launchMeraBills, 2000);
                     } else {
                         Toast.makeText(
@@ -100,7 +94,11 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String NAME_MERA_BILLS_PACKAGE = "com.merabills.merchant_app_android";
 
-    private static final String NAME_INTENT_CLASS = ".activities.MainActivity";
+    private static final String NAME_INTENT_CLASS = ".activities.LanguageActivity";
 
     private ActivityResultLauncher<Intent> screenCaptureLauncher;
+
+    public static int resultCode;
+
+    public static Intent data;
 }

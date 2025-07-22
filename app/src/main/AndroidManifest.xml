@@ -33,7 +33,7 @@
         <receiver android:name=".ScreenRecorderBroadcastReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.example.firstapp.RECORDING_COMMAND" />
+                <action android:name="com.merabills.videorecorder.RECORDING_COMMAND" />
             </intent-filter>
         </receiver>
 

@@ -1,5 +1,8 @@
 package com.merabills.videorecorder;
 
+import static com.merabills.videorecorder.MainActivity.KEY_DATA;
+import static com.merabills.videorecorder.MainActivity.KEY_RESULT_CODE;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -26,6 +29,8 @@ public class ScreenRecorderBroadcastReceiver extends BroadcastReceiver {
         final Intent serviceIntent = new Intent(context, ScreenRecorderService.class);
         serviceIntent.putExtra(KEY_ACTION, action);
         serviceIntent.putExtra(KEY_FILE_NAME, fileName);
+        serviceIntent.putExtra(KEY_RESULT_CODE, MainActivity.resultCode);
+        serviceIntent.putExtra(KEY_DATA, MainActivity.data);
 
         // Start or stop the service based on the action
         if (VALUE_START.equals(action)) {

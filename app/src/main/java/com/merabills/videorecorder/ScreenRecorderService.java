@@ -1,11 +1,16 @@
 package com.merabills.videorecorder;
 
+import static android.app.Activity.RESULT_OK;
+import static com.merabills.videorecorder.ScreenRecorderBroadcastReceiver.KEY_ACTION;
+import static com.merabills.videorecorder.ScreenRecorderBroadcastReceiver.VALUE_DESTROY;
+import static com.merabills.videorecorder.ScreenRecorderBroadcastReceiver.VALUE_RESTART;
+import static com.merabills.videorecorder.ScreenRecorderBroadcastReceiver.VALUE_STOP;
+
 import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.media.MediaMuxer;
@@ -15,7 +20,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.IBinder;
-import android.provider.MediaStore;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
@@ -24,30 +28,12 @@ import androidx.annotation.RequiresPermission;
 import androidx.core.app.NotificationCompat;
 
 import java.io.File;
-import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Objects;
 
-/**
- * Foreground service responsible for screen and audio recording using MediaProjection API.
- */
 public class ScreenRecorderService extends Service {
-
-    private static final String CHANNEL_ID = "ScreenRecorderChannel";
-    private static final String TAG = "ScreenRecorderService";
-    private static final String EXTENSION_MP4 = ".mp4";
-    private static final String MIME_TYPE_MP4 = "video/mp4";
-    private static final String NAME_RECORDING_FOLDER = "/ScreenRecords";
-
-    private MediaProjection mediaProjection;
-    private ScreenMicRecorder screenMicRecorder;
-    private InternalAudioRecorder internalAudioRecorder;
-
-    private MuxerCoordinator muxerCoordinator;
-
-
-    private File outputFile;
 
     @RequiresApi(api = Build.VERSION_CODES.Q)
     @RequiresPermission(allOf = {"android.permission.RECORD_AUDIO"})
@@ -55,56 +41,61 @@ public class ScreenRecorderService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "Service started");
 
-        startForeground(1, createNotification());
-
-        MediaProjectionManager mpm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-        int resultCode = MainActivity.resultCode;
-        Intent data = MainActivity.data;
-
-        mediaProjection = mpm.getMediaProjection(resultCode, data);
-        if (mediaProjection != null) {
-            startRecording();
+        final String action = intent.getStringExtra(KEY_ACTION);
+        if (Objects.equals(action, VALUE_RESTART))
+            initRecording();
+        else if (Objects.equals(action, VALUE_STOP))
+            stopRecording();
+        else if (Objects.equals(action, VALUE_DESTROY))
+            stopSelf();
+        else {
+            startForeground(1, createNotification());
+            initRecording();
         }
-
         return START_NOT_STICKY;
+    }
+
+    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    private void initRecording() {
+
+        final MediaProjectionManager mpm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        final int resultCode = MainActivity.resultCode;
+        final Intent data = MainActivity.data;
+
+        if (resultCode == RESULT_OK && data != null) {
+
+            mediaProjection = mpm.getMediaProjection(resultCode, data);
+            if (mediaProjection != null)
+                startRecording();
+        } else
+            Log.e(TAG, "MediaProjection initialization failed");
     }
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     @RequiresApi(api = Build.VERSION_CODES.Q)
     private void startRecording() {
         try {
+
             final String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
             final String fileName = "recording_" + timestamp;
 
-            Uri videoUri;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.Video.Media.DISPLAY_NAME, fileName + EXTENSION_MP4);
-                values.put(MediaStore.Video.Media.MIME_TYPE, MIME_TYPE_MP4);
-                values.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + NAME_RECORDING_FOLDER);
+            outputFile = new File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES + NAME_RECORDING_FOLDER),
+                    fileName + EXTENSION_MP4
+            );
 
-                videoUri = getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values);
-                assert videoUri != null;
+            final File parent = outputFile.getParentFile();
+            if (parent != null && !parent.exists())
+                //noinspection ResultOfMethodCallIgnored
+                parent.mkdirs();
 
-                OutputStream out = getContentResolver().openOutputStream(videoUri);
-                if (out != null) out.close();
-
-                outputFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES + NAME_RECORDING_FOLDER), fileName + EXTENSION_MP4);
-            } else {
-                File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Recordings");
-                if (!dir.exists()) dir.mkdirs();
-                outputFile = new File(dir, fileName + EXTENSION_MP4);
-            }
-
-            MediaMuxer muxer = new MediaMuxer(outputFile.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-            muxerCoordinator = new MuxerCoordinator(muxer, 2); // video + audio
-
+            final MediaMuxer muxer = new MediaMuxer(outputFile.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            muxerCoordinator = new MuxerCoordinator(muxer, 2); // 2 tracks: audio + video
             screenMicRecorder = new ScreenMicRecorder(mediaProjection, muxerCoordinator);
-            screenMicRecorder.prepare();
-
             internalAudioRecorder = new InternalAudioRecorder(mediaProjection, muxerCoordinator);
+            screenMicRecorder.prepare();
             internalAudioRecorder.prepare();
-
             screenMicRecorder.start();
             internalAudioRecorder.start();
 
@@ -115,32 +106,29 @@ public class ScreenRecorderService extends Service {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.Q)
-    @Override
-    public void onDestroy() {
-        Log.d(TAG, "Service stopping");
+    private void stopRecording() {
+
+        Log.d(TAG, "Stopping recording");
+
         if (screenMicRecorder != null) screenMicRecorder.stop();
         if (internalAudioRecorder != null) internalAudioRecorder.stop();
+        if (muxerCoordinator != null) muxerCoordinator.stopMuxer();
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && outputFile != null) {
-            final Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+        if (outputFile != null && outputFile.exists()) {
+            Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
             mediaScanIntent.setData(Uri.fromFile(outputFile));
             sendBroadcast(mediaScanIntent);
         }
-        if (muxerCoordinator != null) {
-            muxerCoordinator.stopMuxer();
-        }
-
-        super.onDestroy();
     }
 
     private Notification createNotification() {
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
             NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Screen Recorder",
-                    NotificationManager.IMPORTANCE_LOW
+                    CHANNEL_ID, "Screen Recorder", NotificationManager.IMPORTANCE_LOW
             );
-            NotificationManager manager = getSystemService(NotificationManager.class);
+            final NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) manager.createNotificationChannel(channel);
         }
 
@@ -156,4 +144,14 @@ public class ScreenRecorderService extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
+
+    private static final String CHANNEL_ID = "ScreenRecorderChannel";
+    private static final String TAG = "ScreenRecorderService";
+    private static final String EXTENSION_MP4 = ".mp4";
+    private static final String NAME_RECORDING_FOLDER = "/ScreenRecords";
+    private MediaProjection mediaProjection;
+    private ScreenMicRecorder screenMicRecorder;
+    private InternalAudioRecorder internalAudioRecorder;
+    private MuxerCoordinator muxerCoordinator;
+    private File outputFile;
 }

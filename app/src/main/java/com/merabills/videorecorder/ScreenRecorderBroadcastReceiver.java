@@ -31,21 +31,15 @@ public class ScreenRecorderBroadcastReceiver extends BroadcastReceiver {
         serviceIntent.putExtra(KEY_FILE_NAME, fileName);
         serviceIntent.putExtra(KEY_RESULT_CODE, MainActivity.resultCode);
         serviceIntent.putExtra(KEY_DATA, MainActivity.data);
-
-        // Start or stop the service based on the action
-        if (VALUE_START.equals(action)) {
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                context.startForegroundService(serviceIntent);
-            else
-                context.startService(serviceIntent);
-        } else {
-            context.stopService(serviceIntent);
-        }
-
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            context.startForegroundService(serviceIntent);
+        else
+            context.startService(serviceIntent);
     }
 
     public static final String KEY_ACTION = "action";
     public static final String KEY_FILE_NAME = "file_name";
-    private static final String VALUE_START = "start";
+    public static final String VALUE_RESTART = "restart";
+    public static final String VALUE_STOP = "stop";
+    public static final String VALUE_DESTROY = "destroy";
 }

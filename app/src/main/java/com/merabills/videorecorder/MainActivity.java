@@ -25,14 +25,17 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         screenCaptureLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
+
                     // If the user granted screen capture permission
                     if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+
                         final Intent data = result.getData();
 
                         // Create an intent for the ScreenRecorderService
@@ -41,15 +44,13 @@ public class MainActivity extends AppCompatActivity {
                         serviceIntent.putExtra(KEY_DATA, data);
                         resultCode = result.getResultCode();
                         MainActivity.data = data;
-
                         new Handler().postDelayed(this::launchMeraBills, 2000);
-                    } else {
+                    } else
                         Toast.makeText(
                                 this,
                                 "Screen capture permission denied",
                                 Toast.LENGTH_SHORT
                         ).show();
-                    }
                 });
 
         findViewById(R.id.button_start_recording)
@@ -64,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
         // Check and request RECORD_AUDIO permission if not already granted
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
+
             ActivityCompat.requestPermissions(
                     this,
                     new String[]{Manifest.permission.RECORD_AUDIO},
@@ -81,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
      * Launches the MeraBills app by explicitly specifying its package and main activity.
      */
     private void launchMeraBills() {
+
         final Intent intent = new Intent();
         intent.setComponent(new ComponentName(
                 NAME_MERA_BILLS_PACKAGE,
@@ -91,14 +94,9 @@ public class MainActivity extends AppCompatActivity {
 
     public static final String KEY_DATA = "data";
     public static final String KEY_RESULT_CODE = "resultCode";
-
     private static final String NAME_MERA_BILLS_PACKAGE = "com.merabills.merchant_app_android";
-
     private static final String NAME_INTENT_CLASS = ".activities.LanguageActivity";
-
     private ActivityResultLauncher<Intent> screenCaptureLauncher;
-
     public static int resultCode;
-
     public static Intent data;
 }

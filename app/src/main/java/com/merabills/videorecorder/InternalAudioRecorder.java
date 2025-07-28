@@ -22,20 +22,18 @@ import java.util.Objects;
 
 @RequiresApi(api = Build.VERSION_CODES.Q)
 public class InternalAudioRecorder {
+
     public InternalAudioRecorder(
             @NonNull final MediaProjection projection,
             @NonNull final MuxerCoordinator muxerCoordinator
     ) {
-
         this.mediaProjection = projection;
         this.muxerCoordinator = muxerCoordinator;
     }
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     public void prepare() throws IOException {
-
-        final AudioPlaybackCaptureConfiguration config
-                = new AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
+        final AudioPlaybackCaptureConfiguration config = new AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
                 .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
                 .addMatchingUsage(AudioAttributes.USAGE_GAME)
                 .build();
@@ -55,11 +53,11 @@ public class InternalAudioRecorder {
                 .setAudioPlaybackCaptureConfig(config)
                 .build();
 
-        final MediaFormat format =
-                MediaFormat.createAudioFormat(
-                        MediaFormat.MIMETYPE_AUDIO_AAC,
-                        sampleRate,
-                        2);
+        final MediaFormat format = MediaFormat.createAudioFormat(
+                MediaFormat.MIMETYPE_AUDIO_AAC,
+                sampleRate,
+                2
+        );
         format.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
         format.setInteger(MediaFormat.KEY_BIT_RATE, 128000);
 
@@ -69,72 +67,68 @@ public class InternalAudioRecorder {
     }
 
     public void start() {
-
         isRecording = true;
         audioRecord.startRecording();
         recordingThread = new Thread(() -> {
-            final ByteBuffer[] inputBuffers = audioEncoder.getInputBuffers();
-            final ByteBuffer[] outputBuffers = audioEncoder.getOutputBuffers();
             final MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-            byte[] tempBuffer = new byte[4096];
+            final byte[] tempBuffer = new byte[4096];
 
             while (isRecording) {
-
-                final int inputBufferIndex = audioEncoder.dequeueInputBuffer(10000);
+                int inputBufferIndex = audioEncoder.dequeueInputBuffer(10000);
                 if (inputBufferIndex >= 0) {
-
-                    ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
-                    inputBuffer.clear();
-                    final int readBytes = audioRecord.read(tempBuffer, 0, tempBuffer.length);
-                    if (readBytes > 0) {
-
-                        inputBuffer.put(tempBuffer, 0, readBytes);
-                        final long presentationTimeUs = System.nanoTime() / 1000;
-                        audioEncoder.queueInputBuffer(inputBufferIndex, 0, readBytes, presentationTimeUs, 0);
+                    ByteBuffer inputBuffer = audioEncoder.getInputBuffer(inputBufferIndex);
+                    if (inputBuffer != null) {
+                        inputBuffer.clear();
+                        int readBytes = audioRecord.read(tempBuffer, 0, tempBuffer.length);
+                        if (readBytes > 0) {
+                            inputBuffer.put(tempBuffer, 0, readBytes);
+                            long presentationTimeUs = System.nanoTime() / 1000;
+                            audioEncoder.queueInputBuffer(inputBufferIndex, 0, readBytes, presentationTimeUs, 0);
+                        } else {
+                            audioEncoder.queueInputBuffer(inputBufferIndex, 0, 0, 0, 0);
+                        }
                     }
                 }
 
                 int outputBufferIndex = audioEncoder.dequeueOutputBuffer(bufferInfo, 10000);
                 while (outputBufferIndex >= 0) {
-
-                    final ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
-                    if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0)
-                        bufferInfo.size = 0;
-
-                    if (bufferInfo.size > 0) {
-
-                        outputBuffer.position(bufferInfo.offset);
-                        outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
-
-                        if (audioTrackIndex == -1) {
-
-                            final MediaFormat trackFormat = audioEncoder.getOutputFormat();
-                            audioTrackIndex = muxerCoordinator.addTrack(trackFormat);
+                    ByteBuffer outputBuffer = audioEncoder.getOutputBuffer(outputBufferIndex);
+                    if (outputBuffer != null) {
+                        if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                            bufferInfo.size = 0;
                         }
 
-                        while (!muxerCoordinator.isStarted()) {
-                            try {
-                                Thread.sleep(5);
-                            } catch (Exception e) {
-                               Log.e("InternalAudioRecorder", Objects.requireNonNull(e.getMessage()));
+                        if (bufferInfo.size > 0) {
+                            outputBuffer.position(bufferInfo.offset);
+                            outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
+
+                            if (audioTrackIndex == -1) {
+                                MediaFormat trackFormat = audioEncoder.getOutputFormat();
+                                audioTrackIndex = muxerCoordinator.addTrack(trackFormat);
                             }
-                        }
 
-                        muxerCoordinator.getMuxer().writeSampleData(audioTrackIndex, outputBuffer, bufferInfo);
+                            while (!muxerCoordinator.isStarted()) {
+                                try {
+                                    Thread.sleep(5);
+                                } catch (Exception e) {
+                                    Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+                                }
+                            }
+
+                            muxerCoordinator.getMuxer().writeSampleData(audioTrackIndex, outputBuffer, bufferInfo);
+                        }
                     }
                     audioEncoder.releaseOutputBuffer(outputBufferIndex, false);
                     outputBufferIndex = audioEncoder.dequeueOutputBuffer(bufferInfo, 0);
                 }
             }
-        });
+        }, "InternalAudioRecorderThread");
         recordingThread.start();
     }
 
     public void stop() {
-
         isRecording = false;
         if (recordingThread != null) {
-
             try {
                 recordingThread.join();
             } catch (InterruptedException e) {
@@ -143,12 +137,11 @@ public class InternalAudioRecorder {
         }
 
         if (audioRecord != null) {
-
             audioRecord.stop();
             audioRecord.release();
         }
-        if (audioEncoder != null) {
 
+        if (audioEncoder != null) {
             audioEncoder.stop();
             audioEncoder.release();
         }

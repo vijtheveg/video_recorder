@@ -89,11 +89,13 @@ public class MainActivity extends AppCompatActivity {
                 NAME_MERA_BILLS_PACKAGE,
                 NAME_MERA_BILLS_PACKAGE + NAME_INTENT_CLASS)
         );
+        intent.putExtra(EXTRA_RECORD_VIDEO, true);
         startActivity(intent);
     }
 
     public static final String KEY_DATA = "data";
     public static final String KEY_RESULT_CODE = "resultCode";
+    private static final String EXTRA_RECORD_VIDEO = "rcv";
     private static final String NAME_MERA_BILLS_PACKAGE = "com.merabills.merchant_app_android";
     private static final String NAME_INTENT_CLASS = ".activities.LanguageActivity";
     private ActivityResultLauncher<Intent> screenCaptureLauncher;

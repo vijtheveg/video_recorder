@@ -74,15 +74,19 @@ public class InternalAudioRecorder {
             final byte[] tempBuffer = new byte[4096];
 
             while (isRecording) {
-                int inputBufferIndex = audioEncoder.dequeueInputBuffer(10000);
+
+                final int inputBufferIndex = audioEncoder.dequeueInputBuffer(10000);
                 if (inputBufferIndex >= 0) {
-                    ByteBuffer inputBuffer = audioEncoder.getInputBuffer(inputBufferIndex);
+
+                    final ByteBuffer inputBuffer = audioEncoder.getInputBuffer(inputBufferIndex);
                     if (inputBuffer != null) {
+
                         inputBuffer.clear();
-                        int readBytes = audioRecord.read(tempBuffer, 0, tempBuffer.length);
+                        final int readBytes = audioRecord.read(tempBuffer, 0, tempBuffer.length);
                         if (readBytes > 0) {
+
                             inputBuffer.put(tempBuffer, 0, readBytes);
-                            long presentationTimeUs = System.nanoTime() / 1000;
+                            final long presentationTimeUs = System.nanoTime() / 1000;
                             audioEncoder.queueInputBuffer(inputBufferIndex, 0, readBytes, presentationTimeUs, 0);
                         } else {
                             audioEncoder.queueInputBuffer(inputBufferIndex, 0, 0, 0, 0);
@@ -92,22 +96,26 @@ public class InternalAudioRecorder {
 
                 int outputBufferIndex = audioEncoder.dequeueOutputBuffer(bufferInfo, 10000);
                 while (outputBufferIndex >= 0) {
-                    ByteBuffer outputBuffer = audioEncoder.getOutputBuffer(outputBufferIndex);
+
+                    final ByteBuffer outputBuffer = audioEncoder.getOutputBuffer(outputBufferIndex);
                     if (outputBuffer != null) {
+
                         if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                             bufferInfo.size = 0;
                         }
 
                         if (bufferInfo.size > 0) {
+
                             outputBuffer.position(bufferInfo.offset);
                             outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
 
                             if (audioTrackIndex == -1) {
-                                MediaFormat trackFormat = audioEncoder.getOutputFormat();
+                                final MediaFormat trackFormat = audioEncoder.getOutputFormat();
                                 audioTrackIndex = muxerCoordinator.addTrack(trackFormat);
                             }
 
                             while (!muxerCoordinator.isStarted()) {
+
                                 try {
                                     Thread.sleep(5);
                                 } catch (Exception e) {

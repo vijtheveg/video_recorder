@@ -46,7 +46,6 @@ public class MuxerCoordinator {
                 muxer.release();
                 started = false;
             } catch (Exception e) {
-
                 Log.e("MuxerCoordinator", Objects.requireNonNull(e.getMessage()));
             }
         }

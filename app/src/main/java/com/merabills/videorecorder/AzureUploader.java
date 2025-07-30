@@ -1,34 +1,62 @@
 package com.merabills.videorecorder;
 
+import androidx.annotation.NonNull;
+
 import com.azure.core.credential.AzureSasCredential;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobClientBuilder;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Utility class to upload video files to Azure Blob Storage using SAS authentication.
+ */
 public class AzureUploader {
 
-    public static void uploadVideoToAzure(File videoFile, String blobName) {
+    /**
+     * Uploads the given video file to Azure Blob Storage with the specified blob name.
+     *
+     * @param videoFile The local video file to upload.
+     * @param blobName  The name to assign to the blob in Azure Storage.
+     */
+    public static void uploadVideoToAzure(
+            @NonNull File videoFile,
+            @NonNull String blobName
+    ) {
 
-        final String endPoint = "https://testrajat.blob.core.windows.net";
-        final String containerName = "videos";
-        final String credentials = "sv=2024-11-04&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2025-08-30T17:20:42Z&st=2025-07-30T09:05:42Z&spr=https&sig=7dp0KWmKTSB%2BIJUr6RU0yC78PuhjMRGW6TQjyJ%2BD%2Bb8%3D";
-        try {
+        // Validate input: check if the file exists and is not null
+        if (!videoFile.exists()) {
 
+            System.err.println("Upload failed: File does not exist.");
+            return;
+        }
+
+        // Use try-with-resources to ensure the input stream is closed automatically
+        try (InputStream stream = new FileInputStream(videoFile)) {
+
+            // Build the BlobClient with endpoint, container, blob name, and SAS credentials
             BlobClient blobClient = new BlobClientBuilder()
-                    .endpoint(endPoint)
-                    .containerName(containerName)
+                    .endpoint(Constants.AZURE_ENDPOINT)
+                    .containerName(Constants.AZURE_CONTAINER_NAME)
                     .blobName(blobName)
-                    .credential(new AzureSasCredential(credentials))
+                    .credential(new AzureSasCredential(Constants.AZURE_SAS_CREDENTIALS))
                     .buildClient();
 
-            InputStream stream = new FileInputStream(videoFile);
+            // Upload the file stream to Azure (overwrite if blob already exists)
             blobClient.upload(stream, videoFile.length(), true);
-            System.out.println("Upload successful");
+
+            // Log success message
+            System.out.println("Upload successful: " + blobName);
+
+        } catch (IOException io) {
+            // Handle file I/O errors (e.g., read permission issues)
+            System.err.println("Upload failed: Unable to read the file. " + io.getMessage());
         } catch (Exception e) {
-            System.err.println("Upload failed");
+            // Catch all other exceptions during upload (e.g., auth/network issues)
+            System.err.println("Upload failed: " + e.getMessage());
         }
     }
 }

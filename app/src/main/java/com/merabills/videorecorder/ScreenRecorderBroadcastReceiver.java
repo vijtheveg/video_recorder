@@ -6,7 +6,6 @@ import static com.merabills.videorecorder.MainActivity.KEY_RESULT_CODE;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.util.Log;
 
 /**
@@ -19,27 +18,37 @@ public class ScreenRecorderBroadcastReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
 
-        // Extract action and file name from the broadcast intent
-        final String action = intent.getStringExtra(KEY_ACTION);
-        final String fileName = intent.getStringExtra(KEY_FILE_NAME);
+        if (intent == null) {
+            Log.e(TAG, "Received null intent");
+            return;
+        }
 
-        Log.d("RecordingCommandReceiver", "Received action: " + action + ", file: " + fileName);
+        final String action = intent.getStringExtra(Constants.KEY_ACTION);
+        final String fileName = intent.getStringExtra(Constants.KEY_FILE_NAME);
+
+        if (action == null || fileName == null) {
+            Log.e(TAG, "Missing action or file name in broadcast");
+            return;
+        }
+
+        if (MainActivity.data == null || MainActivity.resultCode == 0) {
+            Log.e(TAG, "MediaProjection permission data not initialized");
+            return;
+        }
 
         // Create an intent for the screen recording service
         final Intent serviceIntent = new Intent(context, ScreenRecorderService.class);
-        serviceIntent.putExtra(KEY_ACTION, action);
-        serviceIntent.putExtra(KEY_FILE_NAME, fileName);
+        serviceIntent.putExtra(Constants.KEY_ACTION, action);
+        serviceIntent.putExtra(Constants.KEY_FILE_NAME, fileName);
         serviceIntent.putExtra(KEY_RESULT_CODE, MainActivity.resultCode);
         serviceIntent.putExtra(KEY_DATA, MainActivity.data);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            context.startForegroundService(serviceIntent);
-        else
-            context.startService(serviceIntent);
-    }
 
-    public static final String KEY_ACTION = "action";
-    public static final String KEY_FILE_NAME = "file_name";
-    public static final String VALUE_RESTART = "restart";
-    public static final String VALUE_STOP = "stop";
-    public static final String VALUE_DESTROY = "destroy";
+        // Start the screen recording service as a foreground service
+        try {
+            context.startForegroundService(serviceIntent);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start ScreenRecorderService", e);
+        }
+    }
+    private static final String TAG = "ScreenRecorderReceiver";
 }

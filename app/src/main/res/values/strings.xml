@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Video Recorder</string>
     <string name="start_recording">Start Recording</string>
+    <string name="screen_recording_in_progress">Screen recording in progress</string>
 </resources>

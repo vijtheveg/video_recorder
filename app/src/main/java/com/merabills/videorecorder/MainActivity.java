@@ -54,14 +54,14 @@ public class MainActivity extends AppCompatActivity {
                 });
 
         findViewById(R.id.button_start_recording)
-                .setOnClickListener(v -> launchMeraBillsAndStartRecording());
+                .setOnClickListener(v -> askPermissionAndLaunchMeraBills());
     }
 
     /**
      * Launches MediaProjection screen capture intent and starts screen recording service
      * on user consent. Then launches the MeraBills app after a short delay.
      */
-    private void launchMeraBillsAndStartRecording() {
+    private void askPermissionAndLaunchMeraBills() {
         // Check and request RECORD_AUDIO permission if not already granted
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -80,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Launches the MeraBills app by explicitly specifying its package and main activity.
+     * Launches the MeraBills app with recording intent
      */
     private void launchMeraBills() {
 

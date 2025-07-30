@@ -1,5 +1,6 @@
 [versions]
 agp = "8.10.1"
+azureStorageBlob = "12.25.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
@@ -7,6 +8,7 @@ appcompat = "1.7.1"
 material = "1.12.0"
 
 [libraries]
+azure-storage-blob = { module = "com.azure:azure-storage-blob", version.ref = "azureStorageBlob" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

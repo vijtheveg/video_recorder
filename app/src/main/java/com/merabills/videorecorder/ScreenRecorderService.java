@@ -32,6 +32,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ScreenRecorderService extends Service {
 
@@ -118,6 +120,7 @@ public class ScreenRecorderService extends Service {
             Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
             mediaScanIntent.setData(Uri.fromFile(outputFile));
             sendBroadcast(mediaScanIntent);
+            executor.submit(() -> AzureUploader.uploadVideoToAzure(outputFile, outputFile.getName()));
         }
     }
 
@@ -154,4 +157,5 @@ public class ScreenRecorderService extends Service {
     private InternalAudioRecorder internalAudioRecorder;
     private MuxerCoordinator muxerCoordinator;
     private File outputFile;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 }
